@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        html {
+            height: 100%;
+        }
+        body {
+            padding: 150px;
+            height: 100%;
+            box-sizing: border-box;
+            margin: 0;
+            display: flex;
+        }
+        .json_window {
+            border: 1px solid red;
+            height: 100%;
+            display: inline-block;
+            padding: 2em;
+            white-space: pre;
+        }
+
+        .json_window:focus {
+            border: 1px solid purple;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="json_window" id="editor" contenteditable="plaintext-only"></div>
+    <div class="json_window" id="editor2" contenteditable="plaintext-only"></div>
+
+    <pre>
+{
+    "data": {
+        "title": "value",
+        "subtitle": "value",
+        "age": 45,
+        "tags": [],
+    },
+    "definition": {
+        "title": {"type": "ShortText", "required": true},
+        "subtitle": {"type": "ShortText", "required": true},
+        "tags": [{"type": "ShortText", "required": true}],
+    }
+    
+}    </pre>
+    <button type="button" id="get_json">Get JSON</button>
+
+    <script>
+        const jsonWindow = document.getElementById("editor");
+        const jsonWindow2 = document.getElementById("editor2");
+        const get_json = document.getElementById("get_json");
+
+
+        class Cursor {
+
+            static tabLength = 4
+
+            static init(){
+                this.selection = window.getSelection();
+                this.selectedText = this.selection.toString();
+                this.range = this.selection.getRangeAt(0);
+                //const caretPosition = this.range.startOffset;
+                this.anchorNode = this.selection.anchorNode
+                this.textContent = this.anchorNode.textContent
+
+                this.position = this.range.startOffset
+                //console.log("this.selection: ", this.selection);
+            }
+
+            static nextTab(e){
+                e.preventDefault();
+                this.init()
+                const position = this.position;
+                const modulo = position % 4;
+                const nextTabStop = 4 - modulo;
+                console.log(`position: ${position}. modulo: ${modulo}. Next Tab Stop: ${nextTabStop}`);
+                let tabSpaces = " ".repeat(nextTabStop)
+                this.insertBeforeCaret(tabSpaces)
+
+            }
+
+            static goToPreviousTab(e) {
+                e.preventDefault()
+                this.init()
+
+                const position = this.position;
+                const left = this.textContent.substring(0, position);
+                let right = this.textContent.substring(position);
+                const nothingBeforeCaret = (left.trim().length === 0);
+                if(nothingBeforeCaret){
+                    if(left.length > 3){
+                        const previousTabStop = position % 4;
+                        const leftSpace = " ".repeat(left.length - previousTabStop)
+
+                        this.anchorNode.textContent = `${leftSpace}${right}`;
+                        this.selection.setPosition(this.anchorNode, position - previousTabStop);
+
+                    } else {
+                        if (right.length === 0) {
+                            // Add blank space
+                            right = " "
+                        }
+                        this.anchorNode.textContent = right;
+                        this.selection.setPosition(this.anchorNode, 0);
+                    }
+                }
+                
+            }
+
+            static insertTab(e){
+                e.preventDefault();
+                this.insertBeforeCaret("    ")
+            }
+
+            static cut(){
+                /** 
+                 * STILL NEED TO COPY CUT TEXT TO CLIP BOARD
+                */
+                this.init()
+                const previousNode = this.anchorNode.previousSibling
+                this.range.selectNode(this.anchorNode)
+
+                this.range.extractContents()
+
+                this.selection.setPosition(previousNode, 0);
+                
+            }
+
+            static ignoreIfSameAsNext(value, e){
+                this.init()
+                const position = this.position;
+                const nextChar = this.textContent.charAt(position);
+
+                console.log(nextChar, " ", value)
+
+                if(nextChar === value){
+                    e.preventDefault()
+                    this.selection.setPosition(this.anchorNode, position + value.length);
+                }
+
+            }
+
+            static setIndent(e) {
+                this.init()
+                const position = this.position;
+                const prevChar = this.anchorNode.textContent.charAt(position-1);
+                
+                
+
+                const previousNodeTextContent = this.anchorNode.previousSibling.previousSibling.textContent
+                const right = this.textContent.substring(position);
+                const re = /^ +/
+                const indentation = previousNodeTextContent.match(re);
+
+                if (previousNodeTextContent.endsWith("{")) {
+                    //this.anchorNode.textContent = " ".repeat(4)
+                }
+
+                if(indentation && indentation[0]){
+                    this.selection.setPosition(this.anchorNode, 0);
+                    this.anchorNode.textContent = `${indentation[0]}${right}`;
+                    this.selection.setPosition(this.anchorNode, indentation[0].length);
+                }
+
+            }
+
+            static insertBeforeCaret(value) {
+                this.init()
+                const position = this.position;
+                const left = this.textContent.substring(0, position);
+                const right = this.textContent.substring(position);
+
+                this.anchorNode.textContent = `${left}${value}${right}`;
+
+                this.selection.setPosition(this.anchorNode, position + value.length);
+            }
+
+            static doubleOrSkip(value, e) {
+                this.init()
+                const position = this.position;
+                const nextChar = this.textContent.charAt(position + 1)
+
+                if(value === nextChar){
+                    // Just skip char
+                    this.selection.setPosition(this.anchorNode,  position + 1);
+                } else {
+                }
+
+            }
+
+            static insertAfterCaret(value, e) {
+                this.init()
+                const position = this.position;
+                const nextChar = this.textContent.charAt(position + 1)
+
+                console.log("value:", value, " ", "nextChar:", nextChar)
+
+                if(value === nextChar){
+                    // Just skip char
+                    e.preventDefault()
+                    this.selection.setPosition(this.anchorNode,  position + 1);
+
+                } else {
+                    const offset = this.selectedText.length;
+                    const left = this.textContent.substring(0, (position + offset));
+                    const right = this.textContent.substring((position + offset));
+
+
+                    this.anchorNode.textContent = `${left}${value}${right}`;
+
+                    this.selection.setPosition(this.anchorNode,  position);
+                }
+
+                
+            }
+
+
+
+        }
+
+        
+
+        const twinChars = [
+            ["{", "}"],
+            ["(", ")"],
+            ["[", "]"],
+            ["<", ">"],
+        ]
+
+        const identicleTwins = ["'", "\""]
+
+        
+        const keyDownHandler = (e) => {
+            console.log(e)
+
+            twinChars.forEach((twin) => {
+                if(e.key === twin[0]){
+                    Cursor.insertAfterCaret(twin[1], e)
+                } else if(e.key === twin[1]){
+                    Cursor.ignoreIfSameAsNext(twin[1], e)
+                }
+            })
+
+            identicleTwins.forEach((twin) => {
+                if(e.key === twin) {
+                    Cursor.insertAfterCaret(twin, e)
+                }
+            })
+
+
+            switch(e.key) {
+                case "Tab":
+                    //Cursor.insertTab(e);
+                    Cursor.nextTab(e)
+                    break
+                case "x":
+                    if(e.ctrlKey) {
+                        Cursor.cut()
+                    }
+                case "Enter":
+                    break;
+                
+            }
+        }
+
+        const keyUpHandler = (e) => {
+            //console.log(e)
+            switch(e.key) {
+                case "Enter":
+                    Cursor.setIndent(e)
+                    break;
+                case "Backspace":
+                    Cursor.goToPreviousTab(e)
+                    break
+                case ";":
+                    
+                    break;
+
+            }
+        }
+
+
+        jsonWindow.addEventListener("keyup", keyUpHandler)
+        jsonWindow.addEventListener("keydown", keyDownHandler)
+
+        jsonWindow2.addEventListener("keyup", keyUpHandler)
+        jsonWindow2.addEventListener("keydown", keyDownHandler)
+
+
+
+        get_json.addEventListener("click", (e) => {
+            try {
+                const json_text = jsonWindow.innerText;
+                const json = JSON.parse(json_text);
+                console.log("json_text:", json_text)
+                console.log("json:", json)
+                jsonWindow2.innerHTML = JSON.stringify(json)
+            } catch(e) {
+                console.log("Invalid JSON", e.message)
+                jsonWindow2.innerHTML = (`Error in your JSON, please fix ${e.message}`)
+
+            }
+            
+        })
+    </script>
+
+
+
+</body>
+</html>

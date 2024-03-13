@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        html {
+            height: 100%;
+        }
+        body {
+            padding: 150px;
+            height: 100%;
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        
+        
+        
+        
+    </style>
+</head>
+<body>
+    
+    <type-editor class="json_window" id="editor" contenteditable="true"></type-editor>
+
+    
+
+    <script>
+
+class Type {
+            #selection;
+            #currentEvent;
+            #context;
+
+            constructor({e = {}, context = window, tabLength = 4} = {}){
+                this.#currentEvent = e;
+                this.#context = context
+
+                this.#selection = this.#context.getSelection();
+            }
+
+            get selection () {
+                return this.#selection
+            }
+
+            get range (){
+                return this.selection.getRangeAt(0)
+            }
+
+            get affectedLines(){
+                const range = this.range;
+
+                const startContainer = range.startContainer;
+                const endContainer = range.endContainer;
+                const multiLine = (startContainer !== endContainer)
+                const lines = [range.startContainer]
+
+                if(multiLine){
+                    // Multi Line
+                    let el = this.range.startContainer.nextSibling;
+                        console.log(el)
+                    let lastNode;
+
+                    while(!lastNode){
+                        el = el.nextSibling;
+                        lines.push(el)
+
+                        lastNode = (el === this.range.endContainer)
+                    }
+
+                } else {
+                    // Single Line
+                    
+                    
+                }
+
+                return lines
+            }
+
+            deleteLine(){
+                const affectedLines = this.affectedLines;
+
+                affectedLines.forEach((line) => {
+                    console.log(line.textContent) // also replaceWith etc
+                    //line.replaceWith("") // also replaceWith etc
+                })
+
+                this.range.deleteContents()
+
+            }
+
+
+
+            
+        }
+
+
+        class TypeEditor extends HTMLElement {
+
+            
+            constructor(){
+                super();
+
+            }
+
+            connectedCallback(){
+                // Create Shadow Root
+                const shadow = this.attachShadow({ mode: "open" });
+
+                const editor = document.createElement("div")
+                editor.setAttribute("id", "editor")
+                editor.setAttribute("contentEditable", "true")
+
+                const styles = document.createElement("style");
+
+                styles.innerHTML = `
+                    :host {
+                        display: block;
+                    }
+                    ul {
+                        list-style: none;
+                    }
+                    div {
+                        border: 1px solid red;
+                        height: 100%;
+                        display: block;
+                        padding: 2em;
+                        white-space: pre;
+                    }
+                    div:focus {
+                        border: 1px solid purple;
+                        outline: none;
+                    }
+                    input {
+                        display: inline-block;
+                    }
+
+
+                    .objkey, .objvalue {
+                        display: inline-block;
+                        padding: 0px;
+                    }
+
+                    .obj-entry {
+                        display: block;
+                        margin-left: 20px;
+                    }
+                `;
+
+                shadow.appendChild(styles)
+                shadow.appendChild(editor)
+
+                // Attach Event Listeners
+                editor.addEventListener("keyup", this.#keyUpHandler)
+                editor.addEventListener("keydown", this.#keyDownHandler)
+
+                this.type = new Type({context: this.shadowRoot})
+
+            }
+
+            
+
+            #keyUpHandler = (e) => {
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+
+                if(ctrlPressed) {
+                    switch(pressedKey) {
+                    }    
+                } else {
+                    switch(pressedKey) {
+                        case "Enter":
+                            break;
+                    } 
+                }
+            }
+
+            
+
+            #keyDownHandler = (e) => {
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+
+                if(ctrlPressed) {
+                    switch(pressedKey) {
+                        case "x":
+                            break;
+                    }    
+                } else {
+                    switch(pressedKey) {
+                        case "Tab":
+                            break;
+                        case "Backspace":
+                            this.deleteLine(e)
+                            break;
+                        case ";":
+                            break;
+                        case ",":
+                            break;
+                        case "{":
+                            break;
+                        case "(":
+                            break;
+                        case ")":
+                        case "}":
+                            break;
+                        case "\"":
+                            break;
+                        case "Enter":
+                            break;
+                        case "&":
+                            this.test(e)
+                            break;
+                    } 
+                }
+
+                           
+            }
+
+
+            test(e){
+                e.preventDefault()
+                console.log(this.type)
+                console.log(this.type.range)
+            }
+
+            deleteLine(e){
+                e.preventDefault()
+                this.type.deleteLine()
+            }
+            
+        }
+
+        customElements.define("type-editor", TypeEditor)
+
+        
+       
+        
+        const jsonWindow = document.getElementById("editor")
+
+    </script>
+
+
+
+</body>
+</html>

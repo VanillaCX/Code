@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        html {
+            height: 100%;
+        }
+        body {
+            padding: 150px;
+            height: 100%;
+            box-sizing: border-box;
+            margin: 0;
+        }
+        
+        
+        
+    </style>
+</head>
+<body>
+    
+    <type-editor class="json_window" id="editor" contenteditable="plaintext-only"></type-editor>
+
+    
+    <button type="button" id="button">Get JSON</button>
+
+    <script>
+
+
+        class TypeEditor extends HTMLElement {
+
+            #config = {
+                chiralTwins: [
+                    ["{", "}"],
+                    ["(", ")"],
+                    ["[", "]"],
+                    ["<", ">"],
+                ],
+                identicleTwins: ["'", "\""],
+                tabLength: 4
+            }
+            
+            constructor(){
+                super();
+
+            }
+
+            connectedCallback(){
+                // Create Shadow Root
+                const shadow = this.attachShadow({ mode: "open" });
+
+                const editor = document.createElement("div")
+                editor.setAttribute("id", "editor")
+                editor.setAttribute("contentEditable", "plaintext-only")
+
+                const styles = document.createElement("style");
+
+                styles.innerHTML = `
+                    :host {
+                        display: block;
+                    }
+                    div {
+                        border: 1px solid red;
+                        height: 100%;
+                        display: block;
+                        padding: 2em;
+                        white-space: pre;
+                    }
+                    div:focus {
+                        border: 1px solid purple;
+                        outline: none;
+                    }
+                `;
+
+                shadow.appendChild(styles)
+                shadow.appendChild(editor)
+
+                // Attach Event Listeners
+                editor.addEventListener("keyup", this.#keyUpHandler)
+                editor.addEventListener("keydown", this.#keyDownHandler)
+
+
+            }
+
+            #keyUpHandler = (e) => {
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+
+                if(ctrlPressed) {
+                    switch(pressedKey) {
+                    }    
+                } else {
+                    switch(pressedKey) {
+                        case "Enter":
+                            this.newLine(e)
+                            break;
+                    } 
+                }
+            }
+
+            #keyDownHandler = (e) => {
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+
+                // Check ifs a Chiral Twin. 
+                this.#config.chiralTwins.forEach((twins) => {
+                    const leftTwin = twins[0];
+                    const rightTwin = twins[1];
+
+                    if(pressedKey === leftTwin){
+                        this.openAndExpandPair(leftTwin, rightTwin, e)
+                    } else if(pressedKey === rightTwin) {
+                        this.closePair(rightTwin, e)
+                    }
+                    
+                })
+
+                this.#config.identicleTwins.forEach((twin) => {
+                    if(pressedKey === twin){
+                        this.doubleChar(twin, e)
+                    }
+                })
+
+                if(ctrlPressed) {
+                    switch(pressedKey) {
+                        case "x":
+                            this.cut()
+                            break;
+                    }    
+                } else {
+                    switch(pressedKey) {
+                        case "Tab":
+                            this.tab(e)
+                            break;
+                        case "Backspace":
+                            this.backspace(e)
+                            break;
+                        
+                    } 
+                }
+
+                           
+            }
+
+
+            getSelection(e) {
+                return new Selection({context: this.shadowRoot})
+            }
+
+            newLine(e) {
+                const selection = this.getSelection()
+                const re = /^ +/
+                const reBAK = /(\\n +)|(^ +)/ // Fix to work on same line for when not new text node
+                const indentation = selection.previousNode.previousSibling.textContent.match(re);
+                const indentSpacer = (indentation && indentation[0]) ? indentation[0] : "";
+
+                if(indentSpacer.length > 0){
+                    e.preventDefault();
+
+                    selection.wholeText = `${indentSpacer}${selection.right}`;
+                    selection.moveCaretTo(indentSpacer.length)
+                }
+            }
+
+
+            cut(){
+                const selection = this.getSelection();
+
+                selection.delete()
+
+            }
+            tab(e){
+                e.preventDefault();
+                const selection = this.getSelection();
+                const tabSpaces = " ".repeat(selection.nextTabStop)
+
+                selection.insertBeforeCaret(tabSpaces)
+            }
+
+            doubleChar(value, e){
+                const selection = this.getSelection();
+                const nextChar = selection.nextChar
+
+                if(value === nextChar){
+                    e.preventDefault()
+                    selection.moveCursorForward(1)
+                } else {
+                    selection.insertAfterCaret(value)
+                }
+            }
+
+            openPair(value){
+                const selection = this.getSelection();
+                selection.insertAfterCaret(value)
+
+            }
+
+            openAndExpandPair(left, right, e){
+                e.preventDefault()
+                let selection = this.getSelection();
+                const indent = selection.indent;
+
+
+
+                selection.insertBeforeCaret(`${left}\n${indent}    `)
+
+                
+
+
+                selection = this.getSelection();
+                selection.insertAfterCaret(`\n${indent}${right}`)
+
+            }
+            closePair(value, e){
+                const selection = this.getSelection();
+                const nextChar = selection.nextChar
+
+                if(value === nextChar){
+                    // Just Skip
+                    e.preventDefault()
+                    selection.moveCursorForward(1)
+                }
+
+            }
+
+            backspace(e){
+                const selection = this.getSelection()
+
+                if(this.isOnlyWhiteSpace(selection.left) && selection.position !== 0){
+                    e.preventDefault()
+                    
+                    const right = (selection.right.length > 0) ? selection.right : " ";
+
+                    if(selection.left.length <= 4){
+                        selection.wholeText = right;
+
+                    } else {
+                        const leftSpaceLength = selection.left.length - (selection.previousTabStop || selection.tabLength)
+                        const leftSpace = " ".repeat(leftSpaceLength)
+                        selection.wholeText = `${leftSpace}${right}`
+                        selection.moveCaretTo(leftSpaceLength)
+                    }
+
+                }
+
+            }
+
+            isOnlyWhiteSpace(value){
+                return value.trim().length === 0
+            }
+        }
+
+        customElements.define("type-editor", TypeEditor)
+
+        class Selection {
+            constructor({e = {}, context = window, tabLength = 4} = {}){
+                this.e = e;
+                this.context = context
+                this.selection = this.context.getSelection();
+                this.range = this.selection.getRangeAt(0);
+
+                this.tabLength = tabLength
+            }
+
+            get indent(){
+                const re = /^ +/
+                const indentation = (this.previousNode && this.previousNode.previousSibling && this.previousNode.previousSibling.textContent) ? this.previousNode.previousSibling.textContent.match(re) : null;
+                const indentSpacer = (indentation && indentation[0]) ? indentation[0] : "";
+
+                return indentSpacer
+            }
+
+            get position(){
+                return this.range.startOffset
+            }
+
+            get selectedText(){
+                return this.selection.toString()
+            }
+
+            get wholeText(){
+                return this.selection.anchorNode.textContent
+            }
+
+            set wholeText(value){
+                this.selection.anchorNode.textContent = value
+            }
+
+            get anchorNode(){
+                return this.selection.anchorNode
+            }
+
+            get previousNode(){
+                return this.anchorNode.previousSibling
+            }
+
+            get nextNode(){
+                return this.anchorNode.nextSibling
+            }
+
+            get left(){
+                return this.wholeText.substring(0, this.position)
+            }
+
+            get right(){
+                return this.wholeText.substring(this.position)
+            }
+
+            get nextTabStop(){
+                const remainder = this.position % this.tabLength
+                return this.tabLength - remainder;
+            }
+
+            get previousTabStop(){
+                return this.position % this.tabLength
+            }
+
+            get nextChar(){
+                return this.wholeText.charAt(this.position)
+            }
+
+            delete(){
+                this.range.selectNode(this.anchorNode);
+                this.range.extractContents()
+                this.selection.setPosition(this.previousNode, 0)
+            }
+
+            insertBeforeCaret(value){
+                const left = this.left;
+                const right = this.right;
+                const newString = `${left}${value}${right}`;
+                const pointerPosition = this.position + value.length;
+
+                this.wholeText = newString;
+                this.selection.setPosition(this.anchorNode, pointerPosition)
+            }
+
+            insertAfterCaret(value){
+                const offset = this.selectedText.length;
+                const left = this.wholeText.substring(0, this.position + offset);
+                const right = this.wholeText.substring(this.position + offset);
+                const newString = `${left}${value}${right}`;
+                const pointerPosition = this.position;
+
+                this.wholeText = newString
+
+                this.selection.setPosition(this.anchorNode, pointerPosition)
+            }
+
+            insertAfterCaretBAK(value){
+                const left = this.left;
+                const right = this.right;
+                const newString = `${left}${value}${right}`;
+                const pointerPosition = this.position;
+
+                this.wholeText = newString
+
+                this.selection.setPosition(this.anchorNode, pointerPosition)
+            }
+
+            moveCursorForward(count){
+                this.selection.setPosition(this.anchorNode, this.position + count)
+            }
+
+            moveCaretTo(position) {
+                this.selection.setPosition(this.anchorNode, position)
+            }
+        }
+       
+        
+        const jsonWindow = document.getElementById("editor")
+        const button = document.getElementById("button")
+
+
+        button.addEventListener("click", (e) => {
+            console.log("CLicked button")
+            
+        })
+    </script>
+
+
+
+</body>
+</html>

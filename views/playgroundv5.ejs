@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        html {
+            height: 100%;
+        }
+        body {
+            padding: 150px;
+            height: 100%;
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        .type-window {
+            border: 1px solid lightcoral;
+            list-style: lines;
+            padding-left: 60px;
+            background-color: lightcoral;
+            outline: none
+        }
+
+        .type-window:focus {
+            outline: none
+        }
+
+
+        .type-raw {
+            width: 100%;
+            border: 1px solid green;
+        }
+
+        .type-textContent {
+            border: 1px solid pink
+        }
+
+        @counter-style lines {
+            system: numeric;
+            symbols: "0" "1" "2" "3" "4" "5" "6" "7" "8" "9";
+            prefix: "Line ";
+            suffix: ": ";
+        }
+
+        .raw-line {
+            padding: 3px 6px;
+            border: 1px solid transparent
+        }
+
+        .raw-line::marker {
+            color: white;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            display: block;
+        }
+
+        
+
+        .raw-line:nth-child(odd) {
+            background-color: rgb(255 242 223);
+        }
+
+        .raw-line:nth-child(even) {
+            background-color: white;
+        }
+
+
+
+
+        .html-tag-open {
+            display: inline-flex;
+        }
+
+        .html-tag-opening-bracket,
+        .html-tag-closing-bracket {
+            color: slategrey
+        }
+
+        .html-tag-name {
+            color: darkslategrey;
+        }
+        
+        .html-attribute {
+            display: flex;
+            margin-left: 10px
+        }
+
+        .html-attribute-name {
+            color: darkslategrey;
+        }
+
+        .html-attribute-equals {
+            color: slategrey;
+        }
+
+        .html-attribute-opening-quote,
+        .html-attribute-closing-quote {
+            color: slategrey;
+        }
+
+        .html-attribute-value {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+        }
+
+        .html-attribute-value-part {
+            color: darkslategrey;
+        }
+
+        .html-attribute-divider {
+            color: slategrey;
+            
+        }
+        
+        
+    </style>
+</head>
+<body>
+    
+    <ul class="type-window" id="editor" contenteditable="true"><li class="raw-line" data-type="raw-line"><br></li></ul>
+<textarea class="type-raw" id="debug-raw">
+</textarea>
+<div class="type-textContent" id="debug-textContent"></div>
+    
+
+    <script>
+
+        class Tag {
+            constructor(name) {
+                this.name = name;
+                this.attributes = []
+            }
+
+            /*
+            
+            name="value1, value2"
+            
+            */
+
+            toHTML(){
+                return this.openingTag()
+            }
+
+            openingTag(){
+                const eOpeningTag = document.createElement("div")
+                eOpeningTag.classList.add("html-tag-open")
+                eOpeningTag.setAttribute("data-type", "html-tag-open")
+                eOpeningTag.setAttribute("data-line", "single")
+
+                const eOpeningBracket = document.createElement("div")
+                eOpeningBracket.innerHTML = "<"
+                eOpeningBracket.classList.add("html-tag-opening-bracket")
+                eOpeningBracket.setAttribute("data-type", "html-tag-opening-bracket")
+
+                const eClosingBracket = document.createElement("div")
+                eClosingBracket.innerHTML = ">"
+                eClosingBracket.classList.add("html-tag-closing-bracket")
+                eClosingBracket.setAttribute("data-type", "html-tag-closing-bracket")
+
+                const eTagName = document.createElement("div")
+                eTagName.classList.add("html-tag-name")
+                eTagName.setAttribute("data-type", "html-tag-name")
+                eTagName.innerHTML = this.name;
+
+                const eNameSpacer = document.createElement("div")
+                eNameSpacer.classList.add("html-tag-name-spacer")
+                eNameSpacer.setAttribute("data-type", "html-tag-name-spacer")
+                eNameSpacer.innerHTML = " ";
+
+
+                eOpeningTag.append(eOpeningBracket, eTagName, eNameSpacer)
+
+                this.attributes.forEach((attribute) => {
+                    eOpeningTag.append(attribute)
+                })
+
+                eOpeningTag.append(eClosingBracket)
+
+                return eOpeningTag
+
+            }
+
+            closingTag(){
+                const eClosingTag = document.createElement("div")
+                eClosingTag.classList.add("html-tag-close")
+                eClosingTag.setAttribute("data-type", "html-tag-close")
+
+                const eOpeningBracket = document.createElement("div")
+                eOpeningBracket.innerHTML = "<"
+                eOpeningBracket.classList.add("html-tag-opening-bracket")
+                eOpeningBracket.setAttribute("data-type", "html-tag-opening-bracket")
+
+                const eClosingBracket = document.createElement("div")
+                eClosingBracket.innerHTML = ">"
+                eClosingBracket.classList.add("html-tag-closing-bracket")
+                eClosingBracket.setAttribute("data-type", "html-tag-closing-bracket")
+
+                const eTagName = document.createElement("div")
+                eTagName.classList.add("html-tag-name")
+                eTagName.setAttribute("data-type", "html-tag-name")
+                eTagName.innerHTML = this.name;
+
+
+                eOpeningTag.append(eOpeningBracket, eTagName, eClosingBracket)
+            }
+
+            addAttribute(sName, sValue = ""){
+                const aValue = sValue.split(",")
+
+                const eAttribute = document.createElement("div");
+                eAttribute.classList.add("html-attribute")
+                eAttribute.setAttribute("data-type", "html-attribute")
+
+                const eName = document.createElement("span");
+                eName.classList.add("html-attribute-name");
+                eName.setAttribute("data-type", "html-attribute-name");
+                eName.innerHTML = sName;
+
+                const eEquals = document.createElement("div")
+                eEquals.classList.add("html-attribute-equals")
+                eEquals.setAttribute("data-type", "html-attribute-equals")
+                eEquals.innerHTML = "="
+
+                const eOpeningQuote = document.createElement("div")
+                eOpeningQuote.classList.add("html-attribute-opening-quote")
+                eOpeningQuote.setAttribute("data-type", "html-attribute-opening-quote")
+                eOpeningQuote.innerHTML = "\""
+
+                const eClosingQuote = document.createElement("div")
+                eClosingQuote.classList.add("html-attribute-closing-quote")
+                eClosingQuote.setAttribute("data-type", "html-attribute-closing-quote")
+                eClosingQuote.innerHTML = "\""
+
+                const eValue = document.createElement("ul");
+
+                eValue.classList.add("html-attribute-value")
+                
+                aValue.forEach((sValue, iIndex, aArray) => {
+                    const bLastEntry = !aArray[iIndex+1]
+
+                    const eValuePart = document.createElement("li");
+                    eValuePart.classList.add("html-attribute-value-part")
+                    eValuePart.setAttribute("data-type", "html-attribute-value-part")
+                    eValuePart.innerHTML = sValue
+
+                    const eValueDivider = document.createElement("li")
+                    eValueDivider.classList.add("html-attribute-divider")
+                    eValueDivider.setAttribute("data-type", "html-attribute-divider")
+                    eValueDivider.innerHTML = ","
+
+                    eValue.appendChild(eValuePart)
+
+                    if(!bLastEntry) {
+                        eValue.appendChild(eValueDivider)
+                    }
+                })
+
+                eAttribute.append(eName, eEquals, eOpeningQuote, eValue, eClosingQuote)
+
+
+                this.attributes.push(eAttribute) 
+
+
+            }
+        }
+
+        class Type {
+            #selection;
+            #currentEvent;
+            #context;
+            #editor;
+            #debugRaw;
+            #debugTextContent;
+
+            #keyUpHandler = (e) => {
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+
+                if(ctrlPressed) {
+                    switch(pressedKey) {
+                    }    
+                } else {
+                    switch(pressedKey) {
+                        case "Enter":
+                            //this.newLine(e)
+                            break
+                    } 
+                }
+
+                this.updateDebug()
+                this.analyse(e, pressedKey)
+
+            }
+
+            
+
+            #keyDownHandler = (e) => {
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+
+                if(ctrlPressed) {
+                    switch(pressedKey) {
+                        case "x":
+                            break;
+                        case "Enter":
+                            break;
+                    }    
+                } else {
+                    switch(pressedKey) {
+                        case "Tab":
+                            break;
+                        case "Backspace":
+                            //this.deleteLine(e)
+                            break;
+                        case ";":
+                            break;
+                        case ",":
+                            break;
+                        case "{":
+                            break;
+                        case "(":
+                            break;
+                        case "<":
+                            this.openTag(e);
+                            break;
+                        case ")":
+                            break;
+                        case "}":
+                            break;
+                        case "\"":
+                            break;
+                        case "Enter":
+                            this.enterDown(e)
+                            break;
+                        case "&":
+                            this.test(e)
+                            break;
+                    } 
+                }
+
+
+                this.updateDebug()
+                            
+            }
+
+            constructor(editor, debugRaw, debugTextContent){
+                this.#editor = editor;
+                this.#debugRaw = debugRaw;
+                this.#debugTextContent = debugTextContent;
+
+                this.#selection = window.getSelection();
+
+                this.editor.addEventListener("keyup", this.#keyUpHandler)
+                this.editor.addEventListener("keydown", this.#keyDownHandler)
+            }
+
+            updateDebug(){
+                if (this.#debugRaw) {
+                    this.#debugRaw.innerHTML = this.#editor.innerHTML
+                }
+
+                if (this.#debugTextContent) {
+                    this.#debugTextContent.innerHTML = this.#editor.innerText
+                }
+
+            }
+
+            get editor(){
+                return this.#editor
+            }
+
+            get selection () {
+                return this.#selection
+            }
+
+            get range (){
+                return this.selection.getRangeAt(0)
+            }
+
+            get textContent(){
+                return this.selection.anchorNode.textContent
+            }
+
+            set textContent(value){
+                this.selection.anchorNode.textContent = value
+            }
+
+            get affectedLines(){
+                const range = this.range;
+
+                const startContainer = range.startContainer;
+                const endContainer = range.endContainer;
+                const multiLine = (startContainer !== endContainer)
+                const lines = [range.startContainer]
+
+                if(multiLine){
+                    // Multi Line
+                    let el = this.range.startContainer.nextSibling;
+                        console.log(el)
+                    let lastNode;
+
+                    while(!lastNode){
+                        el = el.nextSibling;
+                        lines.push(el)
+
+                        lastNode = (el === this.range.endContainer)
+                    }
+
+                } else {
+                    // Single Line
+                    
+                    
+                }
+
+                return lines
+            }
+
+            newLine(){
+                //this.selection.anchorNode.classList.add("raw-line")
+                //this.selection.anchorNode.setAttribute("data-type", "raw-line")
+            }
+
+            processRawLine(trimmed){
+                const openingTagRe = /(?:<(?<tagName>[a-zA-Z0-9]+)(?: (?<attributes>[^/<>]*))*>)/g;
+                const attributesRe = /(?<name>[a-zA-Z0-9]+)="(?<value>[a-zA-Z0-9, ]+)"/g;
+                let overwrite = false;
+
+                const tagOpened = trimmed.replace(openingTagRe, (match, _tagName, _attributes, offset, string, groups) => {
+                    const tag = new Tag(_tagName)
+
+                    if (_attributes) {
+                        const attributes = _attributes.replace(attributesRe, (match, name, value) => {
+                            tag.addAttribute(name, value)
+                        })
+                    }
+                    const anchorNode = this.selection.anchorNode;
+
+                    console.log("OVERWRITE THE HTML FOR ", match)
+
+                    // DEV-NOTE:
+                    //  Do not replacechild. JUST replace the matching text
+                    //anchorNode.parentNode.replaceChild(tag.openingTag(), anchorNode);
+                    overwrite = true;
+                    anchorNode.parentNode.innerHTML = trimmed.replace(match, tag.openingTag().outerHTML)
+                    return false
+                })
+
+                console.log("tagOpened:", tagOpened)
+
+            }
+
+            get left(){
+                return this.textContent.substring(0, this.position)
+            }
+
+            get right(){
+                return this.textContent.substring(this.position)
+            }
+
+            get position(){
+                return this.range.startOffset
+            }
+
+            enterUp(e){
+
+            }
+
+            enterDown(e) {
+                const type = this.range.startContainer.parentNode.getAttribute("data-type")
+                const lineContainer = this.range.startContainer.parentNode.closest("[data-type='raw-line']")
+                const breakTagRe = /</g
+                
+
+                if(type === "raw-line"){
+
+                } else {
+                    e.preventDefault()
+                    // Sub Element
+                    const left = this.left;
+                    const right = this.right;
+                    const splitCode = "{{SPLIT}}"
+                    this.textContent = `${left}${splitCode}${right}`
+
+                    // Full line
+                    const splitContent = lineContainer.textContent.replace(breakTagRe, "&lt;").split(splitCode)
+
+                    const eLeft = document.createElement("li")
+                    eLeft.setAttribute("data-type", "raw-line")
+                    eLeft.classList.add("raw-line")
+                    eLeft.innerHTML = splitContent[0]
+
+                    const eRight = document.createElement("li")
+                    eRight.setAttribute("data-type", "raw-line")
+                    eRight.classList.add("raw-line")
+                    eRight.innerHTML = splitContent[1]
+
+                    console.log("eLeft.outerHTML:", eLeft.outerHTML)
+                    console.log("eRight.outerHTML:", eRight.outerHTML)
+
+                    lineContainer.outerHTML = eLeft.outerHTML + eRight.outerHTML
+                    console.log("lineContainer.outerHTML:", lineContainer.outerHTML)
+                    
+                    
+                }
+
+                
+            }
+
+            rebuildOpeningTag(e, element) {
+                console.log("rebuild ", element)
+            }
+
+            closingBracket(e, trimmed, openingTag) {
+                console.group("editing: CLosing Bracket")
+                console.log("e:", e)
+                console.log("trimmed:", trimmed)
+                console.log("openingTag:", openingTag)
+                console.log("this.range.startContainer:", this.range.startContainer)
+                console.groupEnd();
+            }
+
+            analyse(e, pressedKey){
+                const type = this.range.startContainer.parentNode.getAttribute("data-type")
+                const trimmed = this.range.startContainer.textContent.trimStart()
+                const openingTag = this.range.startContainer.parentNode.closest("[data-type='html-tag-open']")
+                //const lineContainer = this.range.startContainer.closest("[data-line='single']")
+                const lineContainer = this.range.startContainer.parentNode.closest("[data-line='single']")
+                if(pressedKey === "Enter"){
+                    
+                } else {
+                    switch(type){
+                        case "raw-line":
+                            console.group("raw-line");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            this.processRawLine(trimmed)
+                            break;
+                        case "html-tag-open":
+                            console.group("html-tag-open");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-tag-opening-bracket":
+                            console.group("html-tag-open");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-tag-name":
+                            console.group("html-tag-name");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-tag-name":
+                            console.group("html-tag-name");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-attribute":
+                            console.group("html-attribute");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-attribute":
+                            console.group("html-attribute");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-attribute-name":
+                            console.group("html-attribute-name");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-attribute-equals":
+                            console.group("html-attribute-equals");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-attribute-opening-quote":
+                            console.group("html-attribute-opening-quote");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-attribute-value":
+                            console.group("html-attribute-value");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-attribute-value-part":
+                            console.group("html-attribute-value-part");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-attribute-divider":
+                            console.group("html-attribute-divider");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-attribute-closing-quote":
+                            console.group("html-attribute-closing-quote");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "html-tag-closing-bracket":
+                            this.closingBracket(e, trimmed, openingTag)
+                            break;
+                        case "XXXX":
+                            console.group("XXXX");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                        case "XXXX":
+                            console.group("XXXX");
+                            console.log(trimmed)
+                            console.groupEnd()
+                            break;
+                    }
+                }
+                
+                
+
+                
+                
+            }
+
+            analyse2(e){
+                //const tagName = //;
+
+                const trimmed = this.range.startContainer.textContent.trimStart()
+                console.log("trimmed:", trimmed)
+                const firstChar = trimmed.charAt(0);
+                const secondChar = trimmed.charAt(1);
+                const lastChar = trimmed.charAt(trimmed.length - 1);
+
+                console.group("CHARS")
+                console.log("firstChar:", firstChar)
+                console.log("secondChar:", secondChar)
+                console.log("lastChar:", lastChar)
+                console.groupEnd()
+
+                if(firstChar === "<"){
+
+                    if(secondChar === "/"){
+                        console.log("Closing Tag")
+
+                        if (lastChar === ">") {
+                            console.log("Closing Tag has been CLOSED")
+                        }
+                    } else {
+                        console.log("Opening Tag")
+
+                        //const tag = new Tag()
+                        const tagNameRe = /<([a-zA-Z-]+)/
+                        const tagName = trimmed.match(tagNameRe);
+                        
+                        console.log("tagName:", tagName)
+                        // Opening Tag
+                        const attributesRe = /(?<attribute>(?<attributeName>[a-zA-Z]+)="(?<attributeValue>[a-zA-Z0-9-_]+)")/g;
+                        const attributes = [...trimmed.matchAll(attributesRe)]
+
+                        attributes.forEach((attribute) => {
+                            console.group(attribute.groups.attribute)
+                            console.log("attributeName:", attribute.groups.attributeName)
+                            console.log("attributeValue:", attribute.groups.attributeValue)
+                            console.groupEnd()
+                        })
+
+                        if (lastChar === ">") {
+                            console.log("Opening Tag has been CLOSED")
+                        }
+
+                    }
+                    
+                    
+                }
+
+            }
+
+            openTag(e) {
+                //e.preventDefault()
+                /**const endPosition = this.range.endOffset + 1;
+
+                console.log(this.selection)
+                console.log(this.range)
+
+                const newTag = document.createElement("ul")
+                const openingTag = document.createElement("li")
+                const closingTag = document.createElement("li")
+
+                openingTag.innerHTML = "TAGNAME"
+                closingTag.innerHTML = "/TAGNAME"
+
+                const newTextNode = document.createTextNode(">")
+                console.log(this.selection.focusNode)
+                this.selection.anchorNode.nodeValue += "<></>"
+
+                try {
+                    this.selection.setPosition(this.selection.anchorNode, endPosition)
+                } catch(e) {}*/
+            }
+
+            openTag2(e) {
+                e.preventDefault()
+                const endPosition = this.range.endOffset + 1;
+
+                console.log(this.selection)
+                console.log(this.range)
+
+                const newTextNode = document.createTextNode(">")
+                console.log(this.selection.focusNode)
+                this.selection.anchorNode.nodeValue += "<></>"
+
+                try {
+                    this.selection.setPosition(this.selection.anchorNode, endPosition)
+                } catch(e) {}
+            }
+
+            newLine2(e){
+                console.log("NEW LINE")
+                e.preventDefault()
+                console.log(this.selection)
+                console.log(this.range)
+
+                const newLine = document.createElement("div")
+                newLine.classList.add("line")
+                const newNode = document.createTextNode("YO")
+                newLine.append(newNode)
+
+                this.selection.anchorNode.after(newLine)
+                this.selection.setPosition(newLine)
+            }
+
+            deleteLine(e){
+                console.log(this.selection)
+                switch(this.selection.type) {
+                    case "Caret":
+                        console.log("Delete character (allow default)")
+                        break;
+                    case "Range":
+                        console.log("Prevent default and deal with selection deletion")
+                        e.preventDefault()
+                        break;
+
+                    }
+
+                /**const affectedLines = this.affectedLines;
+
+                affectedLines.forEach((line) => {
+                    console.log(line.textContent) // also replaceWith etc
+                    //line.replaceWith("") // also replaceWith etc
+                })*/
+
+                //this.range.deleteContents()
+
+            }
+
+
+
+            
+        }
+
+        
+
+        
+        const typeWindow = document.getElementById("editor")
+        const debugRawWindow = document.getElementById("debug-raw")
+        const debugTextWindow = document.getElementById("debug-textContent")
+
+        const type = new Type(typeWindow, debugRawWindow, debugTextWindow)
+
+    </script>
+
+
+
+</body>
+</html>

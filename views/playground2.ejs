@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        html {
+            height: 100%;
+        }
+        body {
+            padding: 150px;
+            height: 100%;
+            box-sizing: border-box;
+            margin: 0;
+        }
+        .json_window {
+            border: 1px solid red;
+            height: 100%;
+            display: inline-block;
+            padding: 2em;
+            white-space: pre;
+        }
+
+        .json_window:focus {
+            border: 1px solid purple;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="json_window" id="editor" contenteditable="plaintext-only"></div>
+    <button type="button" id="insert_json">Insert JSON</button>
+
+    <script>
+        const jsonWindow = document.getElementById("editor");
+        const insertJson = document.getElementById("insert_json");
+
+
+        class Cursor {
+            constructor(){
+            }
+
+            get position(){
+                this.selection = window.getSelection();
+                const range = this.selection.getRangeAt(0);
+                const caretPosition = range.startOffset;
+
+                this.anchorNode = this.selection.anchorNode
+                this.textContent = this.anchorNode.textContent
+
+                return range.startOffset
+            }
+
+            insertTab(){
+                this.textInsert = "    "
+            }
+
+            set textInsert(value) {
+                const position = this.position;
+                const left = this.textContent.substring(0, position);
+                const right = this.textContent.substring(position);
+
+                this.anchorNode.textContent = `${left}${value}${right}`;
+
+                const new_range = document.createRange();
+                new_range.setStart(this.anchorNode, position + 4);
+                new_range.collapse(true);
+                this.selection.removeAllRanges();
+                this.selection.addRange(new_range);
+            }
+
+
+
+        }
+
+        const insertText = (original, insert, index) => {
+            const left = original.substring(0, index);
+            const right = original.substring(index);
+
+            const new_string = `${left}${insert}${right}`;
+
+            return new_string
+        }
+
+        const caret = () => {
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            const caretPosition = range.startOffset;
+            const anchorNode = selection.anchorNode
+            const textContent = anchorNode.textContent
+
+            return {
+                selection,
+                caretPosition,
+                anchorNode,
+                textContent
+            }
+        }
+
+        const addTab = (e) => {
+            e.preventDefault()
+            const cursor = new Cursor()
+            //cursor.textInsert = "    "
+            cursor.insertTab()
+
+
+            
+        }
+
+        const addTab2 = (e) => {
+            e.preventDefault()
+            const current_caret = caret()
+
+            const new_string = insertText(current_caret.textContent, "    ", current_caret.caretPosition)
+            current_caret.anchorNode.textContent = new_string;
+
+
+            const new_range = document.createRange();
+            new_range.setStart(current_caret.anchorNode, current_caret.caretPosition + 4);
+            new_range.collapse(true);
+            current_caret.selection.removeAllRanges();
+            current_caret.selection.addRange(new_range);
+        }
+
+
+        jsonWindow.addEventListener("keydown", (e) => {
+            switch(e.key) {
+                case "Tab":
+                    addTab(e)
+
+                    
+                    break
+            }
+        })
+
+        jsonWindow.addEventListener("keyup", (e) => {
+            /*console.log(e)
+            const raw = e.target.innerText;
+            const parsed = JSON.parse(raw);
+
+            console.log("parsed:", parsed)*/
+
+        })
+
+        insertJson.addEventListener("click", (e) => {
+            const json = {
+                "one": "two"
+            }
+            jsonWindow.innerHTML = JSON.stringify(json)
+        })
+    </script>
+
+
+
+<template>
+        const jsonWindow = document.getElementById("editor");
+        const insertJson = document.getElementById("insert_json");
+
+        const insertText = (original, insert, index) => {
+            const left = original.substring(0, index);
+            const right = original.substring(index);
+
+            const new_string = `${left}${insert}${right}`;
+
+            return new_string
+        }
+
+        const caret = () => {
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            const caretPosition = range.startOffset;
+            const anchorNode = selection.anchorNode
+            const textContent = anchorNode.textContent
+
+            return {
+                selection,
+                caretPosition,
+                anchorNode,
+                textContent
+            }
+        }
+
+        const addTab = (e) => {
+            e.preventDefault()
+            const current_caret = caret()
+
+           
+
+
+            
+            const new_string = insertText(current_caret.textContent, "    ", current_caret.caretPosition)
+            current_caret.anchorNode.textContent = new_string;
+
+
+            const new_range = document.createRange();
+            new_range.setStart(current_caret.anchorNode, current_caret.caretPosition + 4);
+            new_range.collapse(true);
+            current_caret.selection.removeAllRanges();
+            current_caret.selection.addRange(new_range);
+        }
+
+
+        jsonWindow.addEventListener("keydown", (e) => {
+            switch(e.key) {
+                case "Tab":
+                    addTab(e)
+
+                    
+                    break
+            }
+        })
+
+        jsonWindow.addEventListener("keyup", (e) => {
+            /*console.log(e)
+            const raw = e.target.innerText;
+            const parsed = JSON.parse(raw);
+
+            console.log("parsed:", parsed)*/
+
+        })
+
+        insertJson.addEventListener("click", (e) => {
+            const json = {
+                "one": "two"
+            }
+            jsonWindow.innerHTML = JSON.stringify(json)
+        })
+</template>
+</body>
+</html>

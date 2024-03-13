@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        html {
+            height: 100%;
+        }
+        body {
+            padding: 150px;
+            height: 100%;
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        
+        
+        
+        
+    </style>
+</head>
+<body>
+    
+    <type-editor class="json_window" id="editor" contenteditable="true"></type-editor>
+
+    
+    <button type="button" id="button">Get JSON</button>
+
+    <script>
+
+
+        class TypeEditor extends HTMLElement {
+
+            
+            constructor(){
+                super();
+
+            }
+
+            connectedCallback(){
+                // Create Shadow Root
+                const shadow = this.attachShadow({ mode: "open" });
+
+                const editor = document.createElement("div")
+                editor.setAttribute("id", "editor")
+                editor.setAttribute("contentEditable", "true")
+
+                const styles = document.createElement("style");
+
+                styles.innerHTML = `
+                    :host {
+                        display: block;
+                    }
+                    ul {
+                        list-style: none;
+                    }
+                    div {
+                        border: 1px solid red;
+                        height: 100%;
+                        display: block;
+                        padding: 2em;
+                        white-space: pre;
+                    }
+                    div:focus {
+                        border: 1px solid purple;
+                        outline: none;
+                    }
+                    input {
+                        display: inline-block;
+                    }
+
+
+                    .objkey, .objvalue {
+                        display: inline-block;
+                        padding: 0px;
+                    }
+
+                    .obj-entry {
+                        display: block;
+                        margin-left: 20px;
+                    }
+                `;
+
+                shadow.appendChild(styles)
+                shadow.appendChild(editor)
+
+                // Attach Event Listeners
+                editor.addEventListener("keyup", this.#keyUpHandler)
+                editor.addEventListener("keydown", this.#keyDownHandler)
+
+
+            }
+
+            getSelection(e) {
+                return new Selection({context: this.shadowRoot})
+            }
+
+            #keyUpHandler = (e) => {
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+
+                if(ctrlPressed) {
+                    switch(pressedKey) {
+                    }    
+                } else {
+                    switch(pressedKey) {
+                        case "Enter":
+                            break;
+                    } 
+                }
+            }
+
+            
+
+            #keyDownHandler = (e) => {
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+
+                if(ctrlPressed) {
+                    switch(pressedKey) {
+                        case "x":
+                            this.cut(e)
+                            break;
+                    }    
+                } else {
+                    switch(pressedKey) {
+                        case "Tab":
+                            this.tab(e)
+                            break;
+                        case "Backspace":
+                            this.backspace(e)
+                            break;
+                        case ";":
+                            this.newLine(e, ";")
+                            break;
+                        case ",":
+                            this.newLine(e, ",")
+                            break;
+                        case "{":
+                            this.openTagPair(e, "{", "}");
+                            break;
+                        case "(":
+                            this.openTagPair(e, "(", ")");
+                            break;
+                        case ")":
+                            this.ignoreIfNextIsSame(e, ")")
+                        case "}":
+                            this.ignoreIfNextIsSame(e, "}")
+                            break;
+                        case "\"":
+                            this.doubleChar(e, "\"");
+                            break;
+                        case "Enter":
+                            this.newLine(e)
+                            break;
+                        case "&":
+                            this.test(e)
+                            break;
+                    } 
+                }
+
+                           
+            }
+
+
+            test(e){
+                e.preventDefault()
+                const selection = this.getSelection();
+                console.log(selection)
+                console.log(selection.selectedText)
+            }
+
+            
+
+            openTagPair(e, openingTag, closingTag){
+                e.preventDefault()
+                const selection = this.getSelection()
+                selection.openTagPair(openingTag, closingTag)
+                
+            }
+
+            doubleChar(e, char){
+                e.preventDefault()
+                const selection = this.getSelection()
+                
+                selection.doubleChar(char)
+                
+            }
+
+            ignoreIfNextIsSame(e, char){
+                const selection = this.getSelection()
+                
+                if (char === selection.nextChar) {
+                    // Skip
+                    e.preventDefault()
+                    selection.moveCursorForward(1)
+                } 
+
+            }
+
+            
+
+
+            newLine(e, char = "") {
+                console.log("ENTER")
+                e.preventDefault()
+                const selection = this.getSelection()
+                selection.insertNewLine(char)
+            }
+
+
+            cut(){
+                const selection = this.getSelection();
+                selection.cutLine()
+
+            }
+            tab(e){
+                e.preventDefault()
+                console.log("TAB")
+                const selection = this.getSelection()
+
+                selection.insertBeforeCaret("\t")
+            }
+
+
+            backspace(e){
+                console.log("DELETE")
+
+            }
+
+            isOnlyWhiteSpace(value){
+                return value.trim().length === 0
+            }
+        }
+
+        customElements.define("type-editor", TypeEditor)
+
+        class Selection {
+            #originalText;
+            #deletedText;
+
+            constructor({e = {}, context = window, tabLength = 4} = {}){
+                this.e = e;
+
+                this.context = context
+                this.selection = this.context.getSelection();
+                this.range = this.selection.getRangeAt(0);
+                this.#originalText = `${this.selection.anchorNode.textContent}`
+
+            }
+
+            cutLine(){
+                // CANT USE SPLIT LEFT TO DETERMINE LINE AS IT CUTTS A LINE IN HALF
+                console.log(this)
+
+
+            }
+
+            cutLine2(){
+                // CANT USE SPLIT LEFT TO DETERMINE LINE AS IT CUTTS A LINE IN HALF
+                const lines = this.left.split(/\n/g);
+                const currentLine = lines[lines.length - 1]
+                this.#deletedText = lines.pop()
+                const newLeft = lines.join("\n")
+
+                const newContent = `${newLeft}${this.right}`
+
+                this.wholeText = newContent;
+
+
+            }
+
+            get currentIndent() {
+                const lines = this.left.split(/\n/g);
+                const currentLine = lines[lines.length - 1]
+                const extractLineStartTabs = /^(\t|\n\t)+/g;
+                const tabsAtBeginingOfLine = currentLine.match(extractLineStartTabs);
+                const foundTabs = (tabsAtBeginingOfLine) ? tabsAtBeginingOfLine[0] : "";
+                const tabCount = foundTabs.split("\t").length - 1;
+
+                return tabCount
+            }
+
+            createIndent(offset = 0){
+                const indent = "\t".repeat(this.currentIndent + offset);
+
+                return indent
+            }
+
+            insertNewLine(char = ""){
+                const currentIndent = this.currentIndent;
+                const indent = this.createIndent(0);
+
+                const newLine = `${char}\n${indent} `
+                const caretPosition = this.position + newLine.length - 1;
+                console.log(`>${newLine}<`)
+                this.insertAtCaret(newLine, caretPosition)
+
+            }
+
+            openTagPair(openingTag, closingTag){
+                const currentIndent = this.currentIndent;
+                if(this.selectedText.length > 0){
+                    this.deleteSelection()
+
+                    const openingIndent = this.createIndent(1);
+                    const closingIndent = this.createIndent(0);
+
+                    const tagPair = `${openingTag}\n${openingIndent}${this.deletedText}\n${closingIndent}${closingTag}`
+                    const caretPosition = this.position + tagPair.length - 2 - currentIndent;
+
+                    this.insertAtCaret(tagPair, caretPosition)
+
+                   
+                } else if(openingTag === this.nextChar){
+                    // Skip
+                    this.moveCursorForward(1)
+
+                } else {
+                    // create
+                    const openingIndent = this.createIndent(1);
+                    const closingIndent = this.createIndent(0);
+
+                    const tagPair = `${openingTag}\n${openingIndent}\n${closingIndent}${closingTag}`
+                    const caretPosition = this.position + tagPair.length - 2 - currentIndent;
+
+
+                    this.insertAtCaret(tagPair, caretPosition)
+                }
+
+                
+            }
+
+
+            get deletedText() {
+                return this.#deletedText
+            }
+
+            deleteSelection(){
+                this.#deletedText = this.selectedText
+                this.range.deleteContents()
+                this.#originalText = `${this.selection.anchorNode.textContent}`
+            }
+
+            doubleChar(char){
+                const currentIndent = this.currentIndent;
+                if(this.selectedText.length > 0){
+                    this.deleteSelection()
+
+                    const tagPair = `${char}${this.deletedText}${char}`
+                    const caretPosition = this.position + tagPair.length - 1;
+
+                    this.insertAtCaret(tagPair, caretPosition)
+
+                   
+                } else if (char === this.nextChar) {
+                    // Skip
+                    this.moveCursorForward(1)
+                } else {
+                    // INsert
+                    const tagPair = `${char}${char}`
+                    const caretPosition = this.position + tagPair.length - 1;
+
+                    this.insertAtCaret(tagPair, caretPosition)
+
+                }
+
+                
+            }
+
+
+            
+            get position(){
+                return this.range.startOffset
+            }
+
+            get selectedText(){
+                return this.selection.toString()
+            }
+
+            get originalText(){
+                return this.#originalText
+            }
+
+
+            get wholeText(){
+                return this.selection.anchorNode.textContent
+            }
+
+            set wholeText(value){
+                this.selection.anchorNode.textContent = value
+            }
+
+            get anchorNode(){
+                return this.selection.anchorNode
+            }
+
+            get previousNode(){
+                return this.anchorNode.previousSibling
+            }
+
+            get nextNode(){
+                return this.anchorNode.nextSibling
+            }
+
+            get left(){
+                return this.wholeText.substring(0, this.position)
+            }
+
+            get right(){
+                return this.wholeText.substring(this.position)
+            }
+
+            get nextTabStop(){
+                const remainder = this.position % this.tabLength
+                return this.tabLength - remainder;
+            }
+
+            get previousTabStop(){
+                return this.position % this.tabLength
+            }
+
+            get nextChar(){
+                return this.wholeText.charAt(this.position)
+            }
+
+            delete(){
+                this.range.selectNode(this.anchorNode);
+                this.range.extractContents()
+                this.selection.setPosition(this.previousNode, 0)
+            }
+
+            insertAtCaret(value, pointerPosition= this.position){
+                const position = this.position;
+                const left = this.originalText.substring(0, position);
+                const right = this.originalText.substring(position);
+
+                this.anchorNode.textContent = `${left}${value}${right}`;
+
+                this.selection.setPosition(this.anchorNode, pointerPosition);
+            }
+
+
+            insertBeforeCaret(value){
+                const left = this.left;
+                const right = this.right;
+                const newString = `${left}${value}${right}`;
+                const pointerPosition = this.position + value.length;
+                //this.selection.anchorNode.insertBefore(value)
+                this.wholeText = newString;
+                this.selection.setPosition(this.anchorNode, pointerPosition)
+            }
+
+            insertAfterCaret(value){
+                const offset = this.selectedText.length;
+                const left = this.wholeText.substring(0, this.position + offset);
+                const right = this.wholeText.substring(this.position + offset);
+                const newString = `${left}${value}${right}`;
+                const pointerPosition = this.position;
+
+                this.wholeText = newString
+
+                this.selection.setPosition(this.anchorNode, pointerPosition)
+            }
+
+            insertAfterCaretBAK(value){
+                const left = this.left;
+                const right = this.right;
+                const newString = `${left}${value}${right}`;
+                const pointerPosition = this.position;
+
+                this.wholeText = newString
+
+                this.selection.setPosition(this.anchorNode, pointerPosition)
+            }
+
+            moveCursorForward(count){
+                this.selection.setPosition(this.anchorNode, this.position + count)
+            }
+
+            moveCaretTo(position) {
+                this.selection.setPosition(this.anchorNode, position)
+            }
+
+
+            
+        }
+       
+        
+        const jsonWindow = document.getElementById("editor")
+        const button = document.getElementById("button")
+
+
+        button.addEventListener("click", (e) => {
+            console.log("CLicked button")
+            
+        })
+    </script>
+
+
+
+</body>
+</html>
