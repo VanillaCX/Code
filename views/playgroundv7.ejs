@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <style>
+
+        html, body {
+        }
+
         body {
             margin: 0;
         }
@@ -12,11 +16,17 @@
             background-color: pink;
             margin: 0;
             list-style: lines;
+            cursor: default;
         }
 
         .editor > li {
             padding: 3px 6px;
             border-bottom: 1px solid red;
+            cursor: text;
+        }
+
+        .editor > li:hover {
+            background-color: antiquewhite;
         }
 
         .editor:not(.range-selection) > li.active {
@@ -38,40 +48,152 @@
             symbols: "0" "1" "2" "3" "4" "5" "6" "7" "8" "9";
             suffix: ": ";
         }
+
+        .hidden {
+            display: none;
+        }
+
+        .command {
+            border: 5px solid red;
+        }
     </style>
 </head>
 <body>
+
     
-    <ul class="editor" id="editor" contenteditable="true">
-        <li data-type="line">111</li>
-        <li data-type="line">222</li>
-        <li data-type="line">333</li>
-        <li data-type="line">444</li>
-        <li data-type="line">555</li>
-        <li data-type="line">666</li>
+
+    <div id="modals"></div>
+
+   
+    <ul class="editor" id="editor" contenteditable="true" spellcheck="false">
+        <li data-type="line">elit. Reprehenderit deleniti eveniet laboriosam dolor! Sequi ducimus sed quod odit, repellendus, sit porro iure ipsam unde, necessitatibus tempora maxime similique distinctio molestias.</li>
+        <li data-type="line">Lorem ipsum dolor sit, amet consectetur adipisicing elit. Reprehenderit deleniti eveniet laboriosam dolor! Sequi ducimus sed quod odit, repellendus, sit porro iure ipsam unde, necessitatibus tempora maxime similique distinctio molestias.</li>
+        <li data-type="line">Lorem ipsum dolor sit, amet consectetur adipisicing elit. Reprehenderit deleniti eveniet laboriosam dolor! Necessitatibus tempora maxime similique distinctio molestias.</li>
+        <li data-type="line">Lorem ipsum dolor sit, amet consectetur adipisicing elit. Reprehenderit deleniti eveniet laboriosam dolor! Necessitatibus tempora maxime similique distinctio molestias.</li>
+        <li data-type="line">elit. Reprehenderit deleniti eveniet laboriosam dolor! Sequi ducimus sed quod odit, repellendus, sit porro iure ipsam unde, necessitatibus tempora maxime similique distinctio molestias.</li>
+        <li data-type="line">Lorem ipsum dolor sit, amet consectetur adipisicing elit. Reprehenderit deleniti eveniet laboriosam dolor! Sequi ducimus sed quod odit, repellendus, sit porro iure ipsam unde, necessitatibus tempora maxime similique distinctio molestias.</li>
+        <li data-type="line">Lorem ipsum dolor sit, amet consectetur adipisicing elit. Reprehenderit deleniti eveniet laboriosam dolor! Necessitatibus tempora maxime similique distinctio molestias.</li>
     </ul>
 
 
     <script>
 
-        class Line {
-            constructor(text){
+
+        class TypeCommand extends HTMLElement{
+            static observedAttributes = ["title"]
+
+            constructor(modal){
+                super()
+                this.modal = modal;
+
+            }
+
+            connectedCallback(){
+                const shadow = this.attachShadow({mode: "open"})
+
+                const wrapper = document.createElement("div")
+
+                const title = document.createElement("div")
+                title.setAttribute("id", "title")
+
+                const input = document.createElement("input")
+                input.addEventListener("keydown", this.#onKeyDown)
+                input.setAttribute("id", "input")
+
+                const submit = document.createElement("button")
+                submit.setAttribute("id", "submit")
+                submit.addEventListener("click", this.#onSubmit)
+
+                wrapper.append(title, input, submit)
+                shadow.append(wrapper)
+
+                input.focus()
+
+                this.title = this.getAttribute("title") || "Command"
+                this.placeholder = this.getAttribute("placeholder") || "Start typing ..."
+                this.action = this.getAttribute("action") || "Submit"
                 
+            }
+
+            get value(){
+                return this.shadowRoot.getElementById("input").value
+            }
+
+            onSubmit = (value) => {
+                console.log("Clicked Submit", value)
+            }
+
+            onClose = (value) => {
+                console.log("Closing. Value was ", value, " just incase you wanted it")
+            }
+
+            #onSubmit = (e) => {
+                this.onSubmit(this.value)
+                this.remove()
+            }
+
+            #onClose = (e) => {
+                this.onClose(this.value)
+                this.remove()
+
 
             }
 
-            get node(){
-                return this.eListItem
+            #onKeyDown = (e) => {
+                const pressedKey = e.key;
+
+                switch(pressedKey){
+                    case "Enter":
+                        e.preventDefault()
+                        this.#onSubmit()
+                        break;
+                    case "Escape":
+                        e.preventDefault()
+                        this.#onClose()
+                }
             }
 
-            
+            set title(value){
+                if(this.shadowRoot){
+                    this.shadowRoot.getElementById("title").textContent = value
+
+                }
+            }
+
+            set placeholder(value){
+                if(this.shadowRoot){
+                    this.shadowRoot.getElementById("input").setAttribute("placeholder", value)
+                }
+            }
+
+            set action(value){
+                if(this.shadowRoot){
+                    this.shadowRoot.getElementById("submit").textContent = value
+                }
+            }
+
+            attributeChangedCallback(name, oldValue, newValue){
+                switch(name){
+                    case "title":
+                        this.title = newValue
+                        break;
+                    case "placeholder":
+                        this.placeholder = newValue
+                        break;
+                    case "action":
+                        this.action = newValue
+                        break;
+                }
+            }
         }
+
+        customElements.define("type-command", TypeCommand)
+
 
         class Type {
 
             constructor(editor){
                 this.editor = editor;
-
                 this.editor.addEventListener("keydown", this.onKeyDown)
                 this.editor.addEventListener("keyup", this.onKeyUp)
                 this.editor.addEventListener("paste", this.onPaste)
@@ -276,10 +398,36 @@
                 // use normalize()
             }
 
+            gotoLine = (lineNumber) => {
+                const line = this.editor.children[lineNumber - 1] || this.editor.children[this.editor.children.length - 1]
+
+                this.selection.setPosition(line, 0)
+                this.highlightActiveLine()
+
+                this.line.scrollIntoView({behavior: "instant"})
+
+                console.log(this.line)
+            }
+
+            resetLine = () => {
+                this.selection.setPosition(this.currentLine, 0)
+            }
+
+            goToLine = (e) => {
+                e.preventDefault()
+
+                const typeCommand = document.createElement("type-command")
+                typeCommand.setAttribute("title", "Go to line")
+                typeCommand.setAttribute("placeholder", "Enter line number")
+                typeCommand.setAttribute("action", "Go now")
+                typeCommand.onSubmit = this.gotoLine;
+                typeCommand.onClose = this.resetLine;
+
+                document.getElementById("modals").append(typeCommand)
+            }
+
             onDelete(e){
-                console.log(this.editor.children)
                 if(this.editor.children.length === 0){
-                    console.log("PUT A NEW LINE IN")
                     const newLine = this.createLine("")
 
                     this.editor.appendChild(newLine)
@@ -288,6 +436,7 @@
             }
 
             onPaste = (e) => {
+                console.log("onPaste")
                 e.preventDefault();
 
                 const plainText = e.clipboardData.getData("text/plain");
@@ -334,10 +483,12 @@
             }
 
             onMouseDown = (e) => {
+                console.log("onMosueDown")
                 this.highlightActiveLine(e.target.closest("[data-type='line']"));
             }
 
             onSelection = (e) => {
+                console.log("onSelection")
                 if(this.range.collapsed) {
                     this.editor.classList.remove("range-selection")
                 } else {
@@ -346,14 +497,16 @@
             }
 
             onCut = (e) => {
+                console.log("onCut")
                 if(this.range.collapsed) {
-                    const replaceWith = this.previousLine || this.nextLine || this.createLine();
+                    const replaceWith = this.nextLine || this.previousLine || this.createLine();
                     this.line.replaceWith(replaceWith)
                     this.selection.setPosition(replaceWith.childNodes[0], 0)
                 }
             }
 
             onKeyDown = (e) => {
+                console.log("onKeyDown")
                 const text = e.target.innerText;
                 const pressedKey = e.key;
                 const ctrlPressed = e.ctrlKey;
@@ -370,14 +523,26 @@
                     console.groupEnd()
                 }
 
-                switch(pressedKey){
-                    case "Enter":
-                        this.onEnter(e);
-                        break;
+                if(ctrlPressed){
+                    switch(pressedKey){
+                        case "g":
+                            this.goToLine(e)
+                            break;
+                    }
+
+                } else {
+                    switch(pressedKey){
+                        case "Enter":
+                            this.onEnter(e);
+                            break;
+                    }
                 }
+
+                
             }
 
             onKeyUp = (e) => {
+                console.log("onKeyUp")
                 const text = e.target.innerText;
                 const pressedKey = e.key;
                 const ctrlPressed = e.ctrlKey;

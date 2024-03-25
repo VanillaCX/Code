@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <link href="/css/reset.css" rel="stylesheet" />
+    <link href="/css/common.css" rel="stylesheet" />
+    <link href="/css/editor.css" rel="stylesheet" />
+    <link href="/css/editor-html.css" rel="stylesheet" />
+
+<body>
+    <div id="modals"></div>
+    
+    <ul class="editor" id="editor" contenteditable="true" spellcheck="false">
+        <li data-type="line">New Document ...</li>
+    </ul>
+
+    
+    <script>
+        /* HTMLType (HTML PLugin for Type) */
+        class HTMLType extends Type {
+            constructor({editor, modals} = {}){
+                super({editor, modals});
+            }
+        }
+    </script>
+
+    <script>
+        /* SETUP */
+        
+        const editor = new HTMLType({
+            editor: document.getElementById("editor"),
+            modals: document.getElementById("modals")
+        })
+    </script>
+</body>
+</html>

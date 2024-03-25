@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+
+        html, body {
+        }
+
+        body {
+            margin: 0;
+        }
+        .editor {
+            background-color: pink;
+            margin: 0;
+            list-style: lines;
+            cursor: default;
+        }
+
+        .editor > li {
+            padding: 3px 6px;
+            border-bottom: 1px solid red;
+            cursor: text;
+        }
+
+        .editor > li:hover {
+            background-color: antiquewhite;
+        }
+
+        .editor:not(.range-selection) > li.active {
+            background-color: white;
+            outline: 1px solid purple;
+            border-bottom: none 
+        }
+
+        .editor.range-selection > li.active {
+
+        }
+
+        .editor > li:last-child {
+            border-bottom: none;
+        }
+
+        @counter-style lines {
+            system: numeric;
+            symbols: "0" "1" "2" "3" "4" "5" "6" "7" "8" "9";
+            suffix: ": ";
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .command {
+            border: 5px solid red;
+        }
+
+        .tag-opener,
+        .tag-bracket-open,
+        .tag-name,
+        .tag-attributes-list,
+        .tag-bracket-close {
+            display: inline-block
+        }
+    </style>
+</head>
+<body>
+
+    <!--<opening-tag>
+        <tag-name>heading</tag-name>
+        <attribute-list>
+            <tag-attribute>
+                <attribute-name>class</attribute-name>
+                <attribute-value>myHeading</attribute-value>
+            </tag-attribute>
+        </attribute-list>
+    </opening-tag>-->
+    
+
+    <div id="modals"></div>
+
+   
+    <ul class="editor" id="editor" contenteditable="true" spellcheck="false">
+        <li data-type="line"></li>
+    </ul>
+
+
+    <script>
+
+        class TagName extends HTMLElement {
+            constructor(){
+                super()
+            }
+
+            connectedCallback(){
+                const shadow = this.attachShadow({mode: "open"})
+
+                const styleTextNode = document.createTextNode(`
+                    #wrapper {
+                        display: inline-block;
+                        border: 1px solid green;
+                    }
+                `)
+                const style = document.createElement("style")
+                style.append(styleTextNode)
+
+                this.wrapper = document.createElement("div");
+                const textNode = document.createTextNode("<")
+                this.wrapper.setAttribute("id", "wrapper")
+                this.wrapper.setAttribute("contenteditable", "plaintext-only")
+                this.wrapper.append(textNode)
+
+                shadow.append(style, this.wrapper)
+
+                this.selection = document.getSelection();
+                this.range = this.selection.getRangeAt(0)
+                console.log(this.selection)
+                console.log(this.range)
+
+                
+            }
+
+            goto(position){
+                console.log("POS: ", position)
+                console.log(this)
+                this.selection.setPosition(this.wrapper, 1)
+            }
+
+        }
+
+        customElements.define("tag-name", TagName)
+
+        class OpeningTag extends HTMLElement {
+            constructor(){
+                super()
+            }
+
+            connectedCallback(){
+                const shadow = this.attachShadow({mode: "open"})
+
+                this.tagNameElement = document.createElement("tag-name")
+                
+
+                shadow.append(this.tagNameElement)
+
+            }
+
+
+            goTo(position) {
+                console.log("Go to position:", position)
+                this.tagNameElement.goto(position)
+            }
+        }
+
+        customElements.define("opening-tag", OpeningTag)
+
+
+        class TypeCommand extends HTMLElement{
+            static observedAttributes = ["title"]
+
+            constructor(modal){
+                super()
+                this.modal = modal;
+
+            }
+
+            connectedCallback(){
+                const shadow = this.attachShadow({mode: "open"})
+
+                const wrapper = document.createElement("div")
+
+                const title = document.createElement("div")
+                title.setAttribute("id", "title")
+
+                const input = document.createElement("input")
+                input.addEventListener("keydown", this.#onKeyDown)
+                input.setAttribute("id", "input")
+
+                const submit = document.createElement("button")
+                submit.setAttribute("id", "submit")
+                submit.addEventListener("click", this.#onSubmit)
+
+                wrapper.append(title, input, submit)
+                shadow.append(wrapper)
+
+                input.focus()
+
+                this.title = this.getAttribute("title") || "Command"
+                this.placeholder = this.getAttribute("placeholder") || "Start typing ..."
+                this.action = this.getAttribute("action") || "Submit"
+                
+            }
+
+            get value(){
+                return this.shadowRoot.getElementById("input").value
+            }
+
+            onSubmit = (value) => {
+                console.log("Clicked Submit", value)
+            }
+
+            onClose = (value) => {
+                console.log("Closing. Value was ", value, " just incase you wanted it")
+            }
+
+            #onSubmit = (e) => {
+                this.onSubmit(this.value)
+                this.remove()
+            }
+
+            #onClose = (e) => {
+                this.onClose(this.value)
+                this.remove()
+
+
+            }
+
+            #onKeyDown = (e) => {
+                const pressedKey = e.key;
+
+                switch(pressedKey){
+                    case "Enter":
+                        e.preventDefault()
+                        this.#onSubmit()
+                        break;
+                    case "Escape":
+                        e.preventDefault()
+                        this.#onClose()
+                }
+            }
+
+            set title(value){
+                if(this.shadowRoot){
+                    this.shadowRoot.getElementById("title").textContent = value
+
+                }
+            }
+
+            set placeholder(value){
+                if(this.shadowRoot){
+                    this.shadowRoot.getElementById("input").setAttribute("placeholder", value)
+                }
+            }
+
+            set action(value){
+                if(this.shadowRoot){
+                    this.shadowRoot.getElementById("submit").textContent = value
+                }
+            }
+
+            attributeChangedCallback(name, oldValue, newValue){
+                switch(name){
+                    case "title":
+                        this.title = newValue
+                        break;
+                    case "placeholder":
+                        this.placeholder = newValue
+                        break;
+                    case "action":
+                        this.action = newValue
+                        break;
+                }
+            }
+        }
+
+        customElements.define("type-command", TypeCommand)
+
+
+        class Type {
+
+            constructor(editor){
+                this.editor = editor;
+                this.editor.addEventListener("keydown", this.onKeyDown)
+                this.editor.addEventListener("keyup", this.onKeyUp)
+                this.editor.addEventListener("paste", this.onPaste)
+                this.editor.addEventListener("cut", this.onCut)
+                this.editor.addEventListener("mousedown", this.onMouseDown)
+                document.addEventListener("selectionchange", this.onSelection)
+
+                this.selection = window.getSelection();
+                
+            }
+
+            get range(){
+                return this.selection.getRangeAt(0)
+            }
+
+            get anchorNode(){
+                return this.selection.anchorNode
+            }
+
+            get position(){
+                return this.range.startOffset;
+            }
+
+            get endPosition(){
+                return this.range.endOffset;
+            }
+
+            get wholeText(){
+                return this.anchorNode.wholeText
+            }
+
+            get textContent(){
+                return this.anchorNode.textContent
+            }
+
+            get nextChar(){
+                return this.textContent.charAt(this.position)
+            }
+
+            skipChar(){
+                this.selection.setPosition(this.anchorNode, this.position + 1)
+            }
+
+            get prevChar(){
+                return this.textContent.charAt(this.position -1)
+            }
+
+            set textContent(plainText){
+                this.anchorNode.textContent = plainText
+            }
+
+
+            set innerText(value) {
+                this.anchorNode.innerText = value
+            }
+
+            get innerText() {
+                return this.anchorNode.innerText
+            }
+
+
+            removeChildren(element){
+                while (element.firstChild) {
+                    element.removeChild(element.firstChild);
+                }
+
+            }
+
+            insertCharAfterCaret(char){
+                const leftOfCursor = this.textContent.substring(0, this.position);
+                const rightOfCursor = this.textContent.substring(this.endPosition);
+
+                const newCaretPosition = this.position;
+
+                this.textContent = `${leftOfCursor}${char}${rightOfCursor}`;
+                this.selection.setPosition(this.anchorNode, newCaretPosition)
+
+            }
+
+            insertText(plainText){
+                
+                const lines = plainText.split(/\n/);
+                const firstLine = lines.shift();
+
+                const leftOfCursor = this.textContent.substring(0, this.position);
+                const rightOfCursor = this.textContent.substring(this.endPosition);
+                let newCaretPosition;
+
+                if(lines.length === 0){
+                    newCaretPosition = this.position + firstLine.length;
+                    // Remove text right of the cursor from current line and insert first line
+                    this.textContent = `${leftOfCursor}${firstLine}${rightOfCursor}`;
+
+                
+                } else {
+                    newCaretPosition = lines[lines.length - 1].length;
+
+                    lines[lines.length - 1] += rightOfCursor;
+
+                    // Remove text right of the cursor from current line and insert first line
+                    this.textContent = `${leftOfCursor}${firstLine}`;
+
+                    lines.forEach((line) => {
+                        console.log("HEY")
+                        this.insertNewLine(line)
+                        this.parseLine(line, false)
+                    })
+                }
+
+                this.selection.setPosition(this.anchorNode, newCaretPosition)
+               
+            }
+
+            
+
+            onEnter(e) {
+                e.preventDefault();
+                const selectedNodes = this.getSelectedNodes();
+
+                if (this.selection.isCollapsed) {
+                    this.splitLine(e)
+
+                } else {
+                    if(selectedNodes.length > 0){
+                        // Replace the range with an empty string
+                        this.replaceCrossNodeRange("", selectedNodes)
+
+                        // Insert a line
+                        this.splitLine(e)
+                    } else {
+                        // Replace range with an empty string
+                        this.insertText("\n")
+                    }
+                }
+
+            }
+
+            createLine(plainText = ""){
+                const newLineTextNode = document.createTextNode(plainText)
+                const newLine = document.createElement("li")
+                newLine.setAttribute("data-type", "line")
+                newLine.appendChild(newLineTextNode)
+
+                return newLine
+            }
+
+            insertNewLine(plainText, caretPosition = plainText.length){
+
+
+                const newLine = this.createLine(plainText)
+
+                this.line.after(newLine)
+
+
+                // Move cursor to end of newly inserted text
+                this.selection.setPosition(newLine.childNodes[0], caretPosition)
+            }
+
+            splitLine(e){
+                // Get the Plain Text of the anchorNode before and after the cursor
+                const leftOfCursor = this.textContent.substring(0, this.position);
+                const rightOfCursor = this.textContent.substring(this.endPosition);
+                const caretPosition = rightOfCursor.length
+
+                // Update the textContent of the anchorNode
+                this.textContent = leftOfCursor;
+                
+                this.insertNewLine(rightOfCursor, 0);
+                
+            }
+
+            replaceCrossNodeRange(plainText, selectedNodes){
+                const leftOfCursor = selectedNodes[0].textContent.substring(0, this.position);
+                const rightOfCursor = selectedNodes[selectedNodes.length - 1].textContent.substring(this.endPosition);
+
+                // Concatinate the left text, new text and right text
+                const newTextNode = document.createTextNode(`${leftOfCursor}${plainText}${rightOfCursor}`)
+                const newCaretPosition = this.position + plainText.length;
+
+                // Delete selected nodes
+                this.deleteSelectedNodes();
+
+                // Update the textContent of the anchorNode
+                this.textContent = newTextNode.textContent;
+
+                this.selection.setPosition(this.anchorNode, newCaretPosition);
+
+            }
+
+            findCursor(line){
+                const containerNode = line;
+                const walker = document.createTreeWalker(containerNode, NodeFilter.SHOW_ALL);
+                let match = {};
+
+                while(walker.nextNode()) {
+                    console.log(walker.currentNode)
+                    const existsAtPostion = walker.currentNode.textContent.indexOf("###");
+                    if (existsAtPostion > -1) {
+                        match = {
+                            node: walker.currentNode,
+                            position: existsAtPostion
+                        }
+
+                        walker.currentNode.textContent = walker.currentNode.textContent.replace("###", "")
+                    }
+                }
+
+                return match;
+
+            }
+
+            deleteSelectedNodes({keepAnchor = true} = {}){
+                const containerNode = this.range.commonAncestorContainer;
+                const nodesToDelete = []
+
+                const filterMethod = (node) => {
+                    return (keepAnchor) ?
+                        (this.selection.containsNode(node, true) && !node.contains(this.anchorNode)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP
+                    :
+                        (this.selection.containsNode(node, true)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP
+                };
+
+                const walker = document.createTreeWalker(containerNode, NodeFilter.SHOW_ALL, filterMethod);
+
+                while(walker.nextNode()) {
+                    nodesToDelete.push(walker.currentNode)
+                }
+
+                nodesToDelete.forEach(node => node.remove())
+
+            }
+
+            getSelectedNodes(){
+                const containerNode = this.range.commonAncestorContainer;
+                const filterMethod = (node) => {
+                    return (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() !== "" && this.selection.containsNode(node, true)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+                };
+                const walker = document.createTreeWalker(containerNode, NodeFilter.TEXT_NODE, filterMethod);
+                const nodes = []
+
+                while(walker.nextNode()) {
+                    nodes.push(walker.currentNode)
+                }
+
+                return nodes;
+            }
+
+            cleanup(){
+                // use normalize()
+            }
+
+            gotoLine = (lineNumber) => {
+                const line = this.editor.children[lineNumber - 1] || this.editor.children[this.editor.children.length - 1]
+
+                this.selection.setPosition(line, 0)
+                this.highlightActiveLine()
+
+                this.line.scrollIntoView({behavior: "instant"})
+
+                console.log(this.line)
+            }
+
+            resetLine = () => {
+                this.selection.setPosition(this.currentLine, 0)
+            }
+
+            goToLine = (e) => {
+                e.preventDefault()
+
+                const typeCommand = document.createElement("type-command")
+                typeCommand.setAttribute("title", "Go to line")
+                typeCommand.setAttribute("placeholder", "Enter line number")
+                typeCommand.setAttribute("action", "Go now")
+                typeCommand.onSubmit = this.gotoLine;
+                typeCommand.onClose = this.resetLine;
+
+                document.getElementById("modals").append(typeCommand)
+            }
+
+            onDelete(e){
+                if(this.editor.children.length === 0){
+                    const newLine = this.createLine("")
+
+                    this.editor.appendChild(newLine)
+                    this.selection.setPosition(newLine.childNodes[0], 0)
+                }
+            }
+
+            onPaste = (e) => {
+                e.preventDefault();
+
+                const plainText = e.clipboardData.getData("text/plain");
+                const selectedNodes = this.getSelectedNodes();
+
+
+                if(selectedNodes.length > 0){
+                    // Range spans one or more 
+                    this.replaceCrossNodeRange("", selectedNodes)
+                }
+
+                this.insertText(plainText)
+            }
+
+            highlightActiveLine(line = this.line) {
+                // Remove active class from previous line
+                if(this.currentLine){
+                    this.currentLine.classList.remove("active")
+                }
+
+                if(line){
+                    // Add active class to new line
+                    line.classList.add("active")
+
+                    // Update current line to new line
+                    this.currentLine = line;
+                }
+                
+
+            }
+
+            get previousLine(){
+                return this.line.previousElementSibling
+            }
+
+            get nextLine(){
+                return this.line.nextElementSibling
+            }
+
+            get line(){
+                return (this.anchorNode.getAttribute && this.anchorNode.getAttribute("data-type") === "line")
+                        ? this.anchorNode
+                        : this.anchorNode.parentNode.closest("[data-type='line']");
+            }
+
+            onMouseDown = (e) => {
+                this.highlightActiveLine(e.target.closest("[data-type='line']"));
+            }
+
+            onSelection = (e) => {
+                if(this.range.collapsed) {
+                    this.editor.classList.remove("range-selection")
+                } else {
+                    this.editor.classList.add("range-selection")
+                }
+            }
+
+            onCut = (e) => {
+                console.log("onCut")
+                if(this.range.collapsed) {
+                    const replaceWith = this.nextLine || this.previousLine || this.createLine();
+                    this.line.replaceWith(replaceWith)
+                    this.selection.setPosition(replaceWith.childNodes[0], 0)
+                }
+            }
+
+            onKeyDown = (e) => {
+                const text = e.target.innerText;
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+                const shiftPressed = e.shiftKey;
+                const log = false;
+
+                if(log){
+                    console.groupCollapsed(`KEY DOWN: ${pressedKey}`)
+                    console.log(e)
+                    console.log("text:", text)
+                    console.log("pressedKey:", pressedKey)
+                    console.log("ctrlPressed:", ctrlPressed)
+                    console.log("shiftPressed:", shiftPressed)
+                    console.groupEnd()
+                }
+
+                if(ctrlPressed){
+                    switch(pressedKey){
+                        case "g":
+                            this.goToLine(e)
+                            break;
+                    }
+
+                } else {
+                    switch(pressedKey){
+                        case "Enter":
+                            this.onEnter(e);
+                            break;
+                        case "<":
+                            //this.openPair("<", ">");
+                            break;
+                        case "(":
+                            this.openPair("(", ")");
+                            break;
+                        case ">":
+                        case ")":
+                        case "\"":
+                        case "'":
+                            this.closePair(e)
+                            break;
+                    }
+                }
+            }
+
+            openPair(openingChar, closingChar){
+                if(this.nextChar === openingChar){
+                    // Skip it
+                    e.preventDefault()
+                    this.skipChar()
+                } else {
+                    this.insertCharAfterCaret(closingChar)
+                }
+            }
+
+            closePair(e){
+                if(this.nextChar === e.key){
+                    e.preventDefault()
+                    this.skipChar()
+                }
+            }
+
+           
+
+            
+
+            parseOpeningTags(plainText) {
+                const regexp = /(?:<(?<name>[a-zA-Z0-9-\#]+)(?<attributes>[a-zA-Z0-9- =:"',]*)>)/g;
+                
+                const tags = {}
+                let counter = -1;
+
+                const template = plainText.replaceAll(regexp, (match, name, attributes) => {
+                    
+                    const wrapper = document.createElement("div")
+                    wrapper.classList.add("tag-opener")
+                    const openingBracket = document.createElement("div")
+                    openingBracket.classList.add("tag-bracket-open")
+                    const tagName = document.createElement("div")
+                    tagName.classList.add("tag-name")
+                    const closingBracket = document.createElement("div")
+                    closingBracket.classList.add("tag-bracket-close")
+                    const attributeList = document.createElement("div")
+                    attributeList.classList.add("tag-attributes-list")
+
+                    openingBracket.textContent = "<"
+                    tagName.textContent = name
+                    closingBracket.textContent = ">"
+                    attributeList.textContent = `${attributes}`
+                    console.log("tagName:", tagName)
+                    wrapper.append(openingBracket, tagName, attributeList, closingBracket)
+
+                    counter += 1;
+                    const ID = `{{opening-tag-${counter}}}`;
+                    tags[ID] = wrapper
+                    return `@@${ID}@@`
+
+                })
+
+                return {
+                    template,
+                    tags
+                }
+            }
+
+            parseClosingTags(plainText) {
+                const regexp = /(?:<\/(?<name>[a-zA-Z0-9-]*)>)/g;
+                
+                const openingTag = plainText.textContent.replaceAll(regexp, (match, name) => {
+                    console.group("CLOSING TAG")
+                    console.log("name: ", name)
+                    console.groupEnd()
+                })
+            }
+
+            insertMarkup(){
+                const leftOfCursor = this.textContent.substring(0, this.position);
+                const rightOfCursor = this.textContent.substring(this.endPosition);
+ 
+
+            }
+
+            parseLine(line, keepCursorPosition = true){
+
+                if(line){
+                    console.log(this.position)
+                    if(keepCursorPosition){
+                        this.insertText("###")
+                    }
+                    let updatedLine = line.textContent
+
+                    const {template, tags} = this.parseOpeningTags(updatedLine);
+
+                    // SPlit the text 
+                    const splitTemplate = template.split("@@")
+
+                    const parsedLine = document.createElement("li")
+                    parsedLine.setAttribute("data-type", "line")
+
+                    splitTemplate.forEach((chunk) => {
+                        if (chunk.startsWith("{{")) {
+                            parsedLine.append(tags[chunk])
+                        } else if (chunk.length > 0){
+                            const chunkTextNode = document.createTextNode(chunk)
+                            parsedLine.append(chunkTextNode)
+                        }
+                    })
+
+                    this.line.innerHTML = parsedLine.innerHTML
+
+                    if(keepCursorPosition){
+                        const returnTo = this.findCursor(this.line)
+                        this.selection.setPosition(returnTo.node, returnTo.position)
+                        console.log("returnTo:", returnTo)
+                        console.log("parsedLine:", parsedLine)
+
+                    }
+                    
+                }
+
+                
+            }
+
+            onKeyUp = (e) => {
+                const text = e.target.innerText;
+                const pressedKey = e.key;
+                const ctrlPressed = e.ctrlKey;
+                const shiftPressed = e.shiftKey;
+                const log = true;
+
+                if(log){
+                    console.groupCollapsed(`KEY UP: ${pressedKey}`)
+                    console.log(e)
+                    console.log("text:", text)
+                    console.log("pressedKey:", pressedKey)
+                    console.log("ctrlPressed:", ctrlPressed)
+                    console.log("shiftPressed:", shiftPressed)
+                    console.groupEnd()  
+                }
+
+                switch(pressedKey){
+                    case "Backspace":
+                        this.onDelete(e)
+                        break;
+                }
+
+                if(pressedKey !== "ArrowLeft" && pressedKey !== "ArrowRight"){
+                    
+
+                }
+
+                this.parseLine(this.line);
+
+                this.highlightActiveLine();
+            }
+
+        }
+
+        const editor = document.getElementById("editor");
+
+        const type = new Type(editor)
+
+    </script>
+
+</body>
+</html>
